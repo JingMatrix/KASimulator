@@ -81,6 +81,7 @@ android {
     externalNativeBuild {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
+            buildStagingDirectory = layout.buildDirectory.get().asFile
             version = "3.28.0+"
         }
     }
@@ -103,6 +104,7 @@ afterEvaluate {
         val tempModuleDir = project.layout.buildDirectory.dir("tmp/module-${variantName}")
         
         tasks.register("copyFiles${capitalized}") {
+            dependsOn("assemble${capitalized}")
             val moduleFolder = project.rootDir.resolve("module")
             val buildDir = project.layout.buildDirectory
             
@@ -176,11 +178,90 @@ afterEvaluate {
         }
         
         // Zip task uses the temp directory
-        tasks.register<Zip>("zip${capitalized}") {
-            dependsOn("prepareModuleFiles${capitalized}")
-            archiveFileName.set("Tricky-Store-OSS-$verName-$gitCommitCount-$gitCommitHash-${capitalized}.zip")
-            destinationDirectory.set(project.rootDir.resolve("out"))
-            from(tempModuleDir)
+        val zipTask =
+            tasks.register<Zip>("zip${capitalized}") {
+                dependsOn("prepareModuleFiles${capitalized}")
+                archiveFileName.set(
+                    "TEESimulator-$verName-$gitCommitCount-$gitCommitHash-${capitalized}.zip"
+                )
+                destinationDirectory.set(project.rootDir.resolve("out"))
+                from(tempModuleDir)
+            }
+
+        val pushTask =
+            tasks.register<Exec>("push${capitalized}") {
+                group = "TEESimulator Module Installation"
+                dependsOn(zipTask)
+                commandLine(
+                    "adb",
+                    "push",
+                    zipTask.get().archiveFile.get().asFile,
+                    "/data/local/tmp",
+                )
+                description = "Pushes the $variantName module zip to the device."
+            }
+
+        // --- Magisk Install Tasks ---
+        val installMagiskTask =
+            tasks.register<Exec>("installMagisk${capitalized}") {
+                group = "TEESimulator Module Installation"
+                dependsOn(pushTask)
+                commandLine(
+                    "adb",
+                    "shell",
+                    "su",
+                    "-c",
+                    "magisk --install-module /data/local/tmp/${zipTask.get().archiveFileName.get()}",
+                )
+                description = "Installs the $variantName module via Magisk."
+            }
+        tasks.register<Exec>("installMagiskAndReboot${capitalized}") {
+            group = "TEESimulator Module Installation"
+            dependsOn(installMagiskTask)
+            commandLine("adb", "reboot")
+            description = "Installs the $variantName module via Magisk and reboots."
+        }
+
+        // --- KernelSU Install Tasks ---
+        val installKsuTask =
+            tasks.register<Exec>("installKsu${capitalized}") {
+                group = "TEESimulator Module Installation"
+                dependsOn(pushTask)
+                commandLine(
+                    "adb",
+                    "shell",
+                    "su",
+                    "-c",
+                    "ksud module install /data/local/tmp/${zipTask.get().archiveFileName.get()}",
+                )
+                description = "Installs the $variantName module via KernelSU."
+            }
+        tasks.register<Exec>("installKsuAndReboot${capitalized}") {
+            group = "TEESimulator Module Installation"
+            dependsOn(installKsuTask)
+            commandLine("adb", "reboot")
+            description = "Installs the $variantName module via KernelSU and reboots."
+        }
+
+        // --- APatch Install Tasks ---
+        val installApatchTask =
+            tasks.register<Exec>("installApatch${capitalized}") {
+                group = "TEESimulator Module Installation"
+                dependsOn(pushTask)
+                commandLine(
+                    "adb",
+                    "shell",
+                    "su",
+                    "-c",
+                    "/data/adb/apd module install /data/local/tmp/${zipTask.get().archiveFileName.get()}",
+                )
+                description = "Installs the $variantName module via APatch."
+            }
+        tasks.register<Exec>("installApatchAndReboot${capitalized}") {
+            group = "TEESimulator Module Installation"
+            dependsOn(installApatchTask)
+            commandLine("adb", "reboot")
+            description = "Installs the $variantName module via APatch and reboots."
         }
         
         tasks["assemble${capitalized}"].finalizedBy("zip${capitalized}")

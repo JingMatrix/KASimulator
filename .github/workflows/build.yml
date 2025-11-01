@@ -60,7 +60,7 @@ jobs:
       - name: Build with Gradle
         run: |
           chmod +x ./gradlew
-          ./gradlew --parallel assembleRelease assembleDebug --stacktrace
+          ./gradlew --parallel zipRelease zipDebug --stacktrace
 
       - name: Prepare artifact
         if: success()
