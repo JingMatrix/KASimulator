@@ -5,6 +5,7 @@
 
 package io.github.beakthoven.TrickyStoreOSS
 
+import io.github.beakthoven.TrickyStoreOSS.config.PkgConfig
 import io.github.beakthoven.TrickyStoreOSS.logging.Logger
 import org.bouncycastle.asn1.ASN1Boolean
 import org.bouncycastle.asn1.ASN1Encodable
@@ -49,7 +50,7 @@ object CertificateHack {
         leafAlgorithms.clear()
     }
     
-    fun hackCertificateChain(certificateChain: Array<Certificate>?): Array<Certificate> {
+    fun hackCertificateChain(certificateChain: Array<Certificate>?, uid: Int): Array<Certificate> {
         if (certificateChain == null) {
             throw UnsupportedOperationException("Certificate chain is null!")
         }
@@ -80,8 +81,9 @@ object CertificateHack {
                 }
             }
             
-            val keybox = KeyBoxUtils.keyboxes[leaf.publicKey.algorithm]
-                ?: throw UnsupportedOperationException("Unsupported algorithm: ${leaf.publicKey.algorithm}")
+            val keyboxFileName = PkgConfig.getKeyboxFileForUid(uid)
+            val algorithmName = leaf.publicKey.algorithm
+            val keybox = KeyBoxUtils.getKeybox(keyboxFileName, algorithmName) ?: throw UnsupportedOperationException("Unsupported algorithm '$algorithmName' in keybox '$keyboxFileName'")
             
             val certificates = LinkedList(keybox.certificates)
             val builder = X509v3CertificateBuilder(
@@ -107,7 +109,7 @@ object CertificateHack {
             certificates.addFirst(JcaX509CertificateConverter().getCertificate(builder.build(signer)))
             certificates.toTypedArray()
         } catch (t: Throwable) {
-            Logger.e("Failed to hack certificate chain", t)
+            Logger.e("Failed to hack certificate chain for uid=$uid", t)
             certificateChain
         }
     }
@@ -122,12 +124,13 @@ object CertificateHack {
             val algorithm = leafAlgorithms.remove(key)
                 ?: throw UnsupportedOperationException("No algorithm found for key $key")
             
-            val keybox = KeyBoxUtils.keyboxes[algorithm]
-                ?: throw UnsupportedOperationException("Unsupported algorithm: $algorithm")
+            val keyboxFileName = PkgConfig.getKeyboxFileForUid(uid)
+            val keybox = KeyBoxUtils.getKeybox(keyboxFileName, algorithm)
+                ?: throw UnsupportedOperationException("Unsupported algorithm '$algorithm' in keybox '$keyboxFileName'")
             
             CertificateUtils.run { keybox.certificates.toByteArray() } ?: caList
         } catch (t: Throwable) {
-            Logger.e("Failed to hack CA certificate chain", t)
+            Logger.e("Failed to hack CA certificate chain for uid=$uid", t)
             caList
         }
     }
@@ -166,8 +169,10 @@ object CertificateHack {
                 }
             }
             
-            val keybox = KeyBoxUtils.keyboxes[leaf.publicKey.algorithm]
-                ?: throw UnsupportedOperationException("Unsupported algorithm: ${leaf.publicKey.algorithm}")
+            val keyboxFileName = PkgConfig.getKeyboxFileForUid(uid)
+            val algorithmName = leaf.publicKey.algorithm
+            val keybox = KeyBoxUtils.getKeybox(keyboxFileName, algorithmName)
+                ?: throw UnsupportedOperationException("Unsupported algorithm '$algorithmName' in keybox '$keyboxFileName'")
             
             val builder = X509v3CertificateBuilder(
                 X509CertificateHolder(keybox.certificates[0].encoded).subject,
@@ -191,7 +196,7 @@ object CertificateHack {
 
             JcaX509CertificateConverter().getCertificate(builder.build(signer)).encoded
         } catch (t: Throwable) {
-            Logger.e("Failed to hack user certificate", t)
+            Logger.e("Failed to hack user certificate for uid=$uid", t)
             certificate
         }
     }

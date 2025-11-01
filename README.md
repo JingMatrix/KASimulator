@@ -40,22 +40,38 @@ This file provides the master cryptographic identity for the simulator. It conta
 </AndroidAttestation>
 ```
 
-### Mode Configuration (`target.txt`)
+### Mode and Keybox Configuration (`target.txt`)
 
-TEESimulator currently operates in two primary modes as it transitions towards full emulation. You can control this behavior on a per-package basis.
+TEESimulator currently operates in two primary modes as it transitions towards full emulation.
+You can control the simulation mode and the specific keybox.xml file used on a per-package basis.
+
+#### Mode Suffixes
 
 *   **`!` → Force Generation Mode:** Creates a complete, software-based virtual key. This is the foundation of the full TEE simulation.
 *   **`?` → Force Leaf Hacking Mode:** A legacy mode where a real TEE key is generated, but its attestation certificate is intercepted and modified.
 *   **No symbol → Automatic Mode:** The module selects the most appropriate mode for the device.
 
+#### Multi-Keybox Configuration
+
+You can specify different keybox files for different groups of applications. This is done by adding a line with the filename in square brackets (e.g., [demo_keybox.xml]).
+
+All applications listed after this line will use the specified keybox file, until a new keybox is declared. Applications listed before any custom keybox declaration will use the default `keybox.xml`.
+
 For example:
 ```
-# target.txt
-# Use full generation/simulation for this app
+# These two apps will use the default /data/adb/tricky_store/keybox.xml
 com.google.android.gms!
-
-# Use the legacy leaf hacking mode
 io.github.vvb2060.keyattestation?
+
+# Switch to a different keybox for the following apps.
+# The file must be located at /data/adb/tricky_store/aosp_keybox.xml
+[aosp_keybox.xml]
+com.google.android.gsf
+
+# Switch again to another keybox.
+# The file must be located at /data/adb/tricky_store/demo_keybox.xml
+[demo_keybox.xml]
+org.matrix.demo
 ```
 
 ### Security Patch Level (`security_patch.txt`)

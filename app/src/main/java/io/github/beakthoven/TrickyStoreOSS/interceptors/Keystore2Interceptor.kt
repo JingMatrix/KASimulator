@@ -150,7 +150,7 @@ object Keystore2Interceptor : BaseKeystoreInterceptor() {
                 if (response != null) {
                     val chain = CertificateUtils.run { response.getCertificateChain() }
                 if (chain != null) {
-                        val newChain = CertificateHack.hackCertificateChain(chain)
+                        val newChain = CertificateHack.hackCertificateChain(chain, callingUid)
                         response.putCertificateChain(newChain).getOrThrow()
                         Logger.i("Hacked certificate for uid=$callingUid")
                         return createTypedObjectReply(response)

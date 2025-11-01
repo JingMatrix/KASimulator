@@ -8,10 +8,12 @@ package io.github.beakthoven.TrickyStoreOSS
 import android.security.keystore.KeyProperties
 import io.github.beakthoven.TrickyStoreOSS.CertificateGen.KeyBox
 import io.github.beakthoven.TrickyStoreOSS.CertificateHack.clearLeafAlgorithms
+import io.github.beakthoven.TrickyStoreOSS.config.PkgConfig
 import io.github.beakthoven.TrickyStoreOSS.logging.Logger
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserException
 import org.xmlpull.v1.XmlPullParserFactory
+import java.io.File
 import java.io.IOException
 import java.io.StringReader
 import java.security.cert.Certificate
@@ -159,12 +161,68 @@ class XmlParser(private val xmlContent: String) {
 }
 
 object KeyBoxUtils {
-    val keyboxes = ConcurrentHashMap<String, KeyBox>()
+    private val loadedKeyboxFiles = ConcurrentHashMap<String, ConcurrentHashMap<String, KeyBox>>()
 
-    fun hasKeyboxes(): Boolean = keyboxes.isNotEmpty()
+    /**
+     * The primary public function to get a specific KeyBox for a given algorithm and file.
+     * It will load and cache the file on demand if it hasn't been seen before.
+     *
+     * @param keyboxFileName The simple name of the keybox file (e.g., "keybox.xml").
+     * @param algorithm The algorithm key (e.g., KeyProperties.KEY_ALGORITHM_EC).
+     * @return The requested KeyBox, or null if not found in the specified file.
+     */
+    fun getKeybox(keyboxFileName: String, algorithm: String): KeyBox? {
+        val keyboxesForFile = loadedKeyboxFiles.getOrPut(keyboxFileName) {
+            // If this file is not in our cache, load it now.
+            readFromFile(keyboxFileName)
+        }
+        Logger.i("Retriving keybox $keyboxFileName [$algorithm]")
+        return keyboxesForFile[algorithm]
+    }
 
+    private fun readFromFile(fileName: String): ConcurrentHashMap<String, KeyBox> {
+        val filePath = File(PkgConfig.CONFIG_PATH, fileName)
+        Logger.i("Loading keybox file: $filePath")
+
+        val keyboxes = ConcurrentHashMap<String, KeyBox>()
+
+        if (!filePath.exists()) {
+            Logger.e("Keybox file not found: $filePath")
+            return keyboxes // Return an empty map if file doesn't exist
+        }
+
+        try {
+            val xmlData = filePath.readText()
+            val xmlParser = XmlParser(xmlData.sanitizeXml())
+
+            val numberOfKeyboxesResult = xmlParser.obtainPath("AndroidAttestation.NumberOfKeyboxes")
+            val numberOfKeyboxes = when (numberOfKeyboxesResult) {
+                is XmlParser.ParseResult.Success -> numberOfKeyboxesResult.attributes["text"]?.toIntOrNull() ?: 1
+                is XmlParser.ParseResult.Error -> throw Exception(numberOfKeyboxesResult.message, numberOfKeyboxesResult.cause)
+            }
+
+            repeat(numberOfKeyboxes) { i ->
+                val (algorithmName, keyBox) = processKeybox(xmlParser, i)
+                keyboxes[algorithmName] = keyBox
+            }
+
+            Logger.i("Successfully loaded ${keyboxes.size} keyboxes from $fileName")
+        } catch (t: Throwable) {
+            Logger.e("Error loading XML file ($fileName)", t)
+        }
+
+        return keyboxes
+    }
+
+    fun hasKeyboxes(): Boolean = loadedKeyboxFiles.isNotEmpty() && loadedKeyboxFiles.values.any { it.isNotEmpty() }
+
+    // This function is now deprecated and should be removed. We keep it for now to show the transition.
+    // Its logic is now inside readFromFile.
+    @Deprecated("Use getKeybox(fileName, algorithm) instead for dynamic loading.")
     fun readFromXml(xmlData: String?) {
-        keyboxes.clear()
+        // The old global state is gone. This function's logic is now in readFromFile.
+        // We could make this load into a default keybox for backward compatibility if needed.
+        loadedKeyboxFiles.clear()
         clearLeafAlgorithms()
         
         if (xmlData == null) {
@@ -209,7 +267,7 @@ object KeyBoxUtils {
         return content.trimEnd()
     }
 
-    private fun processKeybox(xmlParser: XmlParser, index: Int) {
+    private fun processKeybox(xmlParser: XmlParser, index: Int): Pair<String, KeyBox> {
         try {
             val algorithmResult = xmlParser.obtainPath("AndroidAttestation.Keybox.Key[$index]")
             val keyboxAlgorithm = when (algorithmResult) {
@@ -264,7 +322,7 @@ object KeyBoxUtils {
                 else -> keyboxAlgorithm
             }
             
-            keyboxes[algorithmName] = KeyBox(pemKeyPair, keyPair, certificateChain)
+            return algorithmName to KeyBox(pemKeyPair, keyPair, certificateChain)
             
         } catch (t: Throwable) {
             Logger.e("Error processing keybox $index", t)

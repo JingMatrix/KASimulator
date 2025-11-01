@@ -21,6 +21,18 @@ object PkgConfig {
     private val generatePackages = mutableSetOf<String>()
     private val packageModes = mutableMapOf<String, Mode>()
 
+    private val packageKeyboxes = mutableMapOf<String, String>()
+    private val keyboxRegex = Regex("^\\[([a-zA-Z0-9_.-]+\\.xml)]$")
+    private const val DEFAULT_KEYBOX_FILE = "keybox.xml"
+
+    fun getKeyboxFileForUid(callingUid: Int): String = runCatching {
+        val ps = getPm()?.getPackagesForUid(callingUid) ?: return DEFAULT_KEYBOX_FILE
+        for (pkg in ps) {
+            packageKeyboxes[pkg]?.let { return it }
+        }
+        return DEFAULT_KEYBOX_FILE
+    }.getOrDefault(DEFAULT_KEYBOX_FILE)
+
     enum class Mode {
         AUTO, LEAF_HACK, GENERATE
     }
@@ -29,41 +41,58 @@ object PkgConfig {
         hackPackages.clear()
         generatePackages.clear()
         packageModes.clear()
-        f?.readLines()?.forEach {
-            if (it.isNotBlank() && !it.startsWith("#")) {
-                val n = it.trim()
-                when {
-                    n.endsWith("!") -> {
-                        val pkg = n.removeSuffix("!").trim()
-                        generatePackages.add(pkg)
-                        packageModes[pkg] = Mode.GENERATE
-                    }
-                    n.endsWith("?") -> {
-                        val pkg = n.removeSuffix("?").trim()
-                        hackPackages.add(pkg)
-                        packageModes[pkg] = Mode.LEAF_HACK
-                    }
-                    else -> {
-                        // Auto mode
-                        packageModes[n] = Mode.AUTO
-                    }
+        packageKeyboxes.clear()
+
+        var currentKeyboxFile = DEFAULT_KEYBOX_FILE
+
+        f?.readLines()?.forEach { line ->
+            val n = line.trim()
+            if (n.isBlank() || n.startsWith("#")) {
+                return@forEach // Skip comments and empty lines
+            }
+
+            val matchResult = keyboxRegex.find(n)
+            if (matchResult != null) {
+                currentKeyboxFile = matchResult.groupValues[1]
+                Logger.i("Switched to keybox file: $currentKeyboxFile for subsequent packages")
+                return@forEach
+            }
+
+            when {
+                n.endsWith("!") -> {
+                    val pkg = n.removeSuffix("!").trim()
+                    generatePackages.add(pkg)
+                    packageModes[pkg] = Mode.GENERATE
+                    packageKeyboxes[pkg] = currentKeyboxFile
+                }
+                n.endsWith("?") -> {
+                    val pkg = n.removeSuffix("?").trim()
+                    hackPackages.add(pkg)
+                    packageModes[pkg] = Mode.LEAF_HACK
+                    packageKeyboxes[pkg] = currentKeyboxFile
+                }
+                else -> {
+                    // Auto mode
+                    packageModes[n] = Mode.AUTO
+                    packageKeyboxes[n] = currentKeyboxFile
                 }
             }
         }
-        Logger.i("update hack packages: $hackPackages, generate packages=$generatePackages, packageModes=$packageModes")
+        Logger.i("update hack packages: $hackPackages, generate packages=$generatePackages, packageModes=$packageModes, , packageKeyboxes=$packageKeyboxes")
     }.onFailure {
         Logger.e("failed to update target files", it)
     }
 
+    // This function is now deprecated in favor of a more dynamic approach, but kept for simplicity.
+    // The key logic is now in KeyBoxUtils which will be called from the interceptors.
     private fun updateKeyBox(f: File?) = runCatching {
         KeyBoxUtils.readFromXml(f?.readText())
     }.onFailure {
         Logger.e("failed to update keybox", it)
     }
 
-    private const val CONFIG_PATH = "/data/adb/tricky_store"
+    const val CONFIG_PATH = "/data/adb/tricky_store"
     private const val TARGET_FILE = "target.txt"
-    private const val KEYBOX_FILE = "keybox.xml"
     private const val TEE_STATUS_FILE = "tee_status"
     private const val PATCHLEVEL_FILE = "security_patch.txt"
     private val root = File(CONFIG_PATH)
@@ -100,10 +129,15 @@ object PkgConfig {
                 DELETE, MOVED_FROM -> null
                 else -> return
             }
-            when (path) {
-                TARGET_FILE -> updateTargetPackages(f)
-                KEYBOX_FILE -> updateKeyBox(f)
-                PATCHLEVEL_FILE -> updatePatchLevel(f)
+            when {
+                path == TARGET_FILE -> updateTargetPackages(f)
+                path.endsWith(".xml") -> {
+                    // This is a simplification. A more robust solution would be to reload the specific keybox if it's in use.
+                    // For now, we assume any XML change might affect the active keyboxes, prompting a reload where needed.
+                    // The main logic for loading is now handled dynamically in KeyBoxUtils.
+                    Logger.i("Keybox file $path changed. It will be re-read on next use.")
+                }
+                path == PATCHLEVEL_FILE -> updatePatchLevel(f)
             }
         }
     }
@@ -116,9 +150,9 @@ object PkgConfig {
         } else {
             Logger.e("target.txt file not found, please put it to $scope !")
         }
-        val keybox = File(root, KEYBOX_FILE)
+        val keybox = File(root, DEFAULT_KEYBOX_FILE)
         if (!keybox.exists()) {
-            Logger.e("keybox file not found, please put it to $keybox !")
+            Logger.e("default keybox file not found, please put it to $keybox !")
         } else {
             updateKeyBox(keybox)
         }

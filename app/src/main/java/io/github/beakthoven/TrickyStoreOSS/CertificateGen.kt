@@ -176,7 +176,7 @@ object CertificateGen {
     }
     
     fun generateChain(uid: Int, params: KeyGenParameters, keyPair: KeyPair, securityLevel: Int = 1): List<ByteArray>? = runCatching {
-        val keybox = getKeyboxForAlgorithm(params.algorithm) ?: return null
+        val keybox = getKeyboxForAlgorithm(uid, params.algorithm) ?: return null
 
         val issuer = X509CertificateHolder(keybox.certificates[0].encoded).subject
         val leaf = buildCertificate(keyPair, keybox, params, issuer, uid, securityLevel)
@@ -234,7 +234,7 @@ object CertificateGen {
         }
         
         val keyPair = generateKeyPair(params) ?: return null
-        val keybox = getKeyboxForAlgorithm(params.algorithm) ?: return null
+        val keybox = getKeyboxForAlgorithm(uid, params.algorithm) ?: return null
         
         val (signingKeyPair, issuer) = if (hasAttestKey) {
             getAttestationKeyInfo(uid, attestKeyDescriptor!!)?.let { 
@@ -267,9 +267,10 @@ object CertificateGen {
         }
     }
 
-    private fun getKeyboxForAlgorithm(algorithm: Int): KeyBox? {
+    private fun getKeyboxForAlgorithm(uid: Int, algorithm: Int): KeyBox? {
         val algorithmName = mapAlgorithmToName(algorithm) ?: return null
-        return KeyBoxUtils.keyboxes[algorithmName]
+        val keyboxFileName = PkgConfig.getKeyboxFileForUid(uid)
+        return KeyBoxUtils.getKeybox(keyboxFileName, algorithmName)
     }
 
     private fun getAttestationKeyInfo(uid: Int, attestKeyDescriptor: KeyDescriptor): Pair<KeyPair, X500Name>? {
