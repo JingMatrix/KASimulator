@@ -42,7 +42,6 @@ android {
 
         externalNativeBuild {
             cmake {
-                arguments += "-DANDROID_STL=none"
                 arguments += "-DCMAKE_BUILD_TYPE=Release"
                 arguments += "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON"
                 arguments += "-DANDROID_ALLOW_UNDEFINED_SYMBOLS=ON"
@@ -50,7 +49,6 @@ android {
                 arguments += "-DCMAKE_C_STANDARD=23"
                 arguments += "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON"
                 arguments += "-DLSPLT_BUILD_SHARED=OFF"
-                arguments += "-DLSPLT_STANDALONE=ON"
 
                 cppFlags += "-std=c++23"
                 cppFlags += "-fno-exceptions"
@@ -91,7 +89,6 @@ dependencies {
     compileOnly(project(":stub"))
     compileOnly(libs.annotation)
     implementation(libs.org.bouncycastle.bcpkix.jdk18on)
-    implementation(libs.org.lsposed.libcxx.libcxx)
 }
 
 androidComponents {

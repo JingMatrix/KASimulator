@@ -3,13 +3,11 @@ agp = "8.13.0"
 annotation = "1.9.1"
 jdk18on = "1.82"
 kotlin = "2.2.21"
-libcxx = "28.1.13356709"
 ktfmt = "0.25.0"
 
 [libraries]
 annotation = { module = "androidx.annotation:annotation", version.ref = "annotation" }
 org-bouncycastle-bcpkix-jdk18on = { module = "org.bouncycastle:bcpkix-jdk18on", version.ref = "jdk18on" }
-org-lsposed-libcxx-libcxx = { module = "org.lsposed.libcxx:libcxx", version.ref = "libcxx" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -3,9 +3,6 @@
 cmake_minimum_required(VERSION 3.28)
 project(TEESimulator)
 
-find_package(cxx REQUIRED CONFIG)
-link_libraries(cxx::cxx)
-
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_library(my_logging STATIC logging/logging.cpp)
