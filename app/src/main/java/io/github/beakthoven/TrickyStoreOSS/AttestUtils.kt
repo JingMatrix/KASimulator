@@ -35,7 +35,7 @@ object AttestUtils {
     val TEEStatus: Boolean by lazy { isTEEWorking() }
     val CachedAttestData: AttestationData? by lazy { getAttestData() }
 
-    private val keygen_alias = "TrickyStoreOSS_attest"
+    private val keygen_alias = "TEESimulator_attest"
 
     private fun isTEEWorking(): Boolean {
         return try {

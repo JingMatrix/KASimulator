@@ -7,8 +7,8 @@ package io.github.beakthoven.TrickyStoreOSS
 
 import android.system.keystore2.KeyEntryResponse
 import android.system.keystore2.KeyMetadata
-import android.util.Log
 import io.github.beakthoven.TrickyStoreOSS.CertificateUtils.putCertificateChain
+import io.github.beakthoven.TrickyStoreOSS.logging.Logger
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.StringReader
@@ -26,8 +26,6 @@ import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter
 import org.bouncycastle.util.io.pem.PemReader
 
 object CertificateUtils {
-    private const val TAG = "TrickyStoreOSS"
-
     sealed class CertificateResult<out T> {
         data class Success<T>(val data: T) : CertificateResult<T>()
 
@@ -59,7 +57,7 @@ object CertificateUtils {
                 val certFactory = CertificateFactory.getInstance("X.509")
                 certFactory.generateCertificate(ByteArrayInputStream(bytes)) as? X509Certificate
             } catch (e: CertificateException) {
-                Log.w(TAG, "Couldn't parse certificate in keystore", e)
+                Logger.w("Couldn't parse certificate in keystore", e)
                 null
             }
         }
@@ -84,7 +82,7 @@ object CertificateUtils {
                 certFactory.generateCertificates(ByteArrayInputStream(bytes))
                     as Collection<X509Certificate>
             } catch (e: CertificateException) {
-                Log.w(TAG, "Couldn't parse certificates in keystore", e)
+                Logger.w("Couldn't parse certificates in keystore", e)
                 emptyList()
             }
         } ?: emptyList()
@@ -97,12 +95,12 @@ object CertificateUtils {
                     outputStream.toByteArray()
                 }
             }
-            .onFailure { Log.w(TAG, "Failed to convert certificates to byte array", it) }
+            .onFailure { Logger.w("Failed to convert certificates to byte array", it) }
             .getOrNull()
 
     fun Collection<Certificate>.toByteArrayList(): List<ByteArray>? =
         runCatching { map { it.encoded } }
-            .onFailure { Log.w(TAG, "Failed to convert certificates to byte array list", it) }
+            .onFailure { Logger.w("Failed to convert certificates to byte array list", it) }
             .getOrNull()
 
     fun KeyEntryResponse?.getCertificateChain(): Array<Certificate>? {

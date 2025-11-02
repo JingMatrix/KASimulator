@@ -10,7 +10,7 @@
 
 #include "lsplt.hpp"
 
-#define LOG_TAG "TrickyStoreOSS"
+#define LOG_TAG "TEESimulator"
 
 #define SYSCALL_IS_ERR(e) (((unsigned long)e) > -4096UL)
 #define SYSCALL_ERR(e) (-(int)(e))

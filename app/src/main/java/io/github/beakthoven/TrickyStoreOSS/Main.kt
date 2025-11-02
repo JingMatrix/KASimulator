@@ -15,7 +15,7 @@ private const val RETRY_DELAY_MS = 1000L
 private const val SERVICE_SLEEP_MS = 1000000L
 
 fun main(args: Array<String>) {
-    Logger.i("Welcome to TrickyStoreOSS!")
+    Logger.i("Welcome to TEESimulator!")
 
     try {
         AndroidUtils.setupBootHash()

@@ -8,7 +8,7 @@ package io.github.beakthoven.TrickyStoreOSS.logging
 import android.util.Log
 
 object Logger {
-    const val TAG = "TrickyStoreOSS"
+    const val TAG = "TTESimulator"
 
     sealed class LogLevel(val priority: Int) {
         object Debug : LogLevel(Log.DEBUG)

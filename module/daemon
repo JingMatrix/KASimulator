@@ -12,4 +12,4 @@ else
     exit 1
 fi
 
-exec /system/bin/app_process -Djava.class.path="$CLASSPATH" "$MODDIR" --nice-name=TrickyStoreOSS io.github.beakthoven.TrickyStoreOSS.MainKt
+exec /system/bin/app_process -Djava.class.path="$CLASSPATH" "$MODDIR" --nice-name=TEESimulator io.github.beakthoven.TrickyStoreOSS.MainKt

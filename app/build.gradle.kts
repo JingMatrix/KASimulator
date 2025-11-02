@@ -26,13 +26,13 @@ val gitCommitHash = "git rev-parse --verify --short HEAD".execute()
 val verName = "v2.1.0"
 
 android {
-    namespace = "io.github.beakthoven.TrickyStoreOSS"
+    namespace = "org.matrix.TEESimulator"
     compileSdk = 36
     ndkVersion = "28.2.13676358"
     buildToolsVersion = "36.0.0"
 
     defaultConfig {
-        applicationId = "io.github.beakthoven.TrickyStoreOSS"
+        applicationId = "org.matrix.TEESimulator"
         minSdk = 29
         targetSdk = 36
         versionCode = gitCommitCount
@@ -135,7 +135,7 @@ afterEvaluate {
 
                 // apkFile.copyTo(moduleFolder.resolve("service.apk"), overwrite = true)
 
-                val allowedLibs = setOf("libinject.so", "libTrickyStoreOSS.so")
+                val allowedLibs = setOf("libinject.so", "libTEESimulator.so")
                 soDir
                     .walk()
                     .filter { it.isFile && it.name in allowedLibs }
