@@ -31,7 +31,7 @@ object Keystore2Interceptor : BaseKeystoreInterceptor() {
 
     override val serviceName = "android.system.keystore2.IKeystoreService/default"
     override val processName = "keystore2"
-    override val injectionCommand = "exec ./inject `pidof keystore2` libTrickyStoreOSS.so entry"
+    override val injectionCommand = "exec ./inject `pidof keystore2` libTEESimulator.so entry"
 
     private var teeInterceptor: SecurityLevelInterceptor? = null
     private var strongBoxInterceptor: SecurityLevelInterceptor? = null

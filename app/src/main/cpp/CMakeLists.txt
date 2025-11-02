@@ -1,7 +1,7 @@
 # Copyright 2025 Dakkshesh <beakthoven@gmail.com>
 # SPDX-License-Identifier: GPL-3.0-or-later
 cmake_minimum_required(VERSION 3.28)
-project(TrickyStoreOSS)
+project(TEESimulator)
 
 find_package(cxx REQUIRED CONFIG)
 link_libraries(cxx::cxx)
