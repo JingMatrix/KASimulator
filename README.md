@@ -1,126 +1,74 @@
-# Tricky Store OSS – A Trick of Keystore They Forgot to Hide
+# TEESimulator – A Full TEE Emulation Framework
 
-A **FOSS** alternative to the proprietary [TrickyStore](https://github.com/5ec1cff/TrickyStore) Magisk module.  
+**TEESimulator** is a FOSS system module designed to create a complete, software-based simulation of a hardware-backed Trusted Execution Environment ([TEE](https://source.android.com/docs/security/features/trusty)) for [Key Attestation](https://developer.android.com/privacy-and-security/security-key-attestation).
 
-## ❓ Why?
+The project's goal is to move beyond simple certificate patching and build a robust framework that can create and manage virtual, self-consistent cryptographic keys.
 
-We all know about the [multiple violations and questionable practices by the author of TrickyStore](docs/5ec1cff-violations.md).  
-Because of this, I decided to create a **complete rewrite from scratch**, based on:  
+## ✨ Core Principles
 
-- Various projects mentioned in [Acknowledgement](https://github.com/beakthoven/TrickyStoreOSS?tab=readme-ov-file#%EF%B8%8F-acknowledgement) section
-- Official changelogs and expected behavior of newer releases  
-- My own feature additions and fixes that were part of an earlier fork of the older codebase  
-
-Tricky Store OSS is **rightfully licensed under GPLv3**, ensuring it stays free and compliant with open-source laws.
-
-## ✨ Features
-
-- 100% **FOSS**
-- Developed to match the proprietary implementation’s behavior and feature set as closely as possible
+*   **Bypass Hardware-Backed Attestation:** The primary goal of this project is to defeat Key Attestation, a security mechanism that allows apps to verify that they are running on a secure, unmodified device. This module provides the tools to bypass these checks on rooted or modified devices.
+*   **Stateful Emulation:** Instead of patching responses from the real TEE, the ultimate goal is to create and manage virtual keys entirely in a simulated software environment. Any request concerning a virtual key will be handled by the simulator, ensuring perfect consistency without ever touching the real hardware.
+*   **Architectural Interception:** By hooking low-level Binder IPC calls to the Keystore, the framework can transparently redirect requests for virtual keys to the software-based simulator, while allowing requests for real keys to pass through to the hardware TEE.
+*   **100% FOSS:** Licensed under GPLv3, ensuring it stays free, auditable, and compliant with open-source laws.
 
 ## 📱 Requirements
 - Android 10 or above
 
-## 📦 Installtion
+## 📦 Installation & Configuration
 
-1. Flash this module and reboot
-2. (Optional) Place an unrevoked hardware keybox.xml at `/data/adb/tricky_store/keybox.xml` for extended integrity
-3. (Optional) Customize target packages in `/data/adb/tricky_store/target.txt`
-4. (Optional) Customize security patch in `/data/adb/tricky_store/security_patch.txt`
-5. Enjoy!
+1.  Flash this module via (Magisk / KernelSU / APatch) and reboot.
+2.  (Optional) Place a hardware-backed `keybox.xml` at `/data/adb/tricky_store/keybox.xml`. This provides the cryptographic "root of trust" for the simulator.
+3.  (Optional) Customize target packages in `/data/adb/tricky_store/target.txt`.
+4.  (Optional) Customize the simulated security patch level in `/data/adb/tricky_store/security_patch.txt`.
+5.  Enjoy!
 
+**All configuration files are monitored and will take effect immediately upon saving.**
 
-**All configuration files will take effect immediately.**
+### The `keybox.xml` Root of Trust
 
-### keybox.xml
-
-format:
+This file provides the master cryptographic identity for the simulator. It contains a private key and a valid, hardware-backed certificate chain from a real device. The simulator uses this to sign the virtual certificates it generates, making them appear legitimate to verifiers.
 
 ```xml
 <?xml version="1.0"?>
 <AndroidAttestation>
-    <NumberOfKeyboxes>1</NumberOfKeyboxes>
     <Keybox DeviceID="...">
         <Key algorithm="ecdsa|rsa">
-            <PrivateKey format="pem">
------BEGIN EC PRIVATE KEY-----
-...
------END EC PRIVATE KEY-----
-            </PrivateKey>
-            <CertificateChain>
-                <NumberOfCertificates>...</NumberOfCertificates>
-                    <Certificate format="pem">
------BEGIN CERTIFICATE-----
-...
------END CERTIFICATE-----
-                    </Certificate>
-                ... more certificates
-            </CertificateChain>
-        </Key>...
+            <PrivateKey format="pem">...</PrivateKey>
+            <CertificateChain>...</CertificateChain>
+        </Key>
     </Keybox>
 </AndroidAttestation>
 ```
 
-### Mode configuration
+### Mode Configuration (`target.txt`)
 
-Tricky Store OSS supports two modes: leaf certificate hacking and certificate generation.
-On TEE-broken devices, leaf hacking won’t work since the leaf certificate can’t be retrieved from TEE. The module automatically selects the appropriate mode for your device.
+TEESimulator currently operates in two primary modes as it transitions towards full emulation. You can control this behavior on a per-package basis.
 
-You can override this behavior per package:
-- Add ! → Force certificate generation mode
-- Add ? → Force leaf hacking mode
-- No symbol → Automatic mode
+*   **`!` → Force Generation Mode:** Creates a complete, software-based virtual key. This is the foundation of the full TEE simulation.
+*   **`?` → Force Leaf Hacking Mode:** A legacy mode where a real TEE key is generated, but its attestation certificate is intercepted and modified.
+*   **No symbol → Automatic Mode:** The module selects the most appropriate mode for the device.
 
 For example:
-
 ```
 # target.txt
-# use automatic mode for gsf
-com.google.android.gsf
-# use leaf certificate hacking mode for key attestation App
-io.github.vvb2060.keyattestation?
-# use certificate generating mode for gms
+# Use full generation/simulation for this app
 com.google.android.gms!
+
+# Use the legacy leaf hacking mode
+io.github.vvb2060.keyattestation?
 ```
 
-### Customize security patch level 
+### Security Patch Level (`security_patch.txt`)
 
-Create the file `/data/adb/tricky_store/security_patch.txt`.
-
-Simple:
+This allows you to configure the security patch level that the simulator will report in its forged attestation certificates.
 
 ```
-# Hack os/vendor/boot security patch level
-20241101
+# Advanced Configuration
+system=2025-11
+boot=no        # Do not report a boot patch level
+vendor=20251101 # Report a specific vendor patch level
 ```
-
-Advanced:
-
-```
-# os security patch level is 202411
-system=202411
-# do not hack boot patch level
-boot=no
-# vendor patch level is 20241101 (another format)
-vendor=2024-11-01
-# default value
-# all=20241101
-# keep consistent with system prop
-# system=prop
-```
-
-Note: This only affects KeyAttestation results.
-It does not change system properties; use resetprop separately if needed.
+**Note:** This only affects the Key Attestation data generated by the simulator. It does not change system properties.
 
 ## 🤝 Contributions
-PRs are welcome. Thank you for supporting true open-source development.
-
-## ❤️ Acknowledgement
-
-- [BootloaderSpoofer](https://github.com/chiteroman/BootloaderSpoofer) (dead, relied on forks and mirrors)
-- [FrameworkPatch](https://github.com/chiteroman/FrameworkPatch) (dead, relied on forks and mirrors)
-- [KeyAttestation](https://github.com/vvb2060/KeyAttestation)
-- [KeystoreInjection](https://github.com/aviraxp/Zygisk-KeystoreInjection)
-- [LSPlt-JingMatrix](https://github.com/JingMatrix/LSPlt)
-- [LSPosed](https://github.com/LSPosed/LSPosed)
-- [PlayIntegrityFork](https://github.com/osm0sis/PlayIntegrityFork)
+PRs are welcome as we work towards the goal of a complete TEE simulation. Thank you for supporting true open-source development.
