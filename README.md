@@ -88,3 +88,14 @@ vendor=20251101 # Report a specific vendor patch level
 
 ## 🤝 Contributions
 PRs are welcome as we work towards the goal of a complete TEE simulation. Thank you for supporting true open-source development.
+
+## ❤️ Acknowledgement
+
+- [TrickyStoreOSS](https://github.com/beakthoven/TrickyStoreOSS)
+- [BootloaderSpoofer](https://github.com/chiteroman/BootloaderSpoofer)
+- [FrameworkPatch](https://github.com/chiteroman/FrameworkPatch)
+- [KeyAttestation](https://github.com/vvb2060/KeyAttestation)
+- [KeystoreInjection](https://github.com/aviraxp/Zygisk-KeystoreInjection)
+- [LSPlt-JingMatrix](https://github.com/JingMatrix/LSPlt)
+- [LSPosed](https://github.com/LSPosed/LSPosed)
+- [PlayIntegrityFork](https://github.com/osm0sis/PlayIntegrityFork)
