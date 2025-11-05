@@ -12,10 +12,12 @@
 
 #include <map>
 #include <memory>
+#include <mutex>
 #include <queue>
 #include <shared_mutex>
 #include <span>
 #include <string_view>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -86,19 +88,40 @@ struct ThreadTransactionInfo {
     ThreadTransactionInfo(uint32_t code, wp<BBinder> target) : transaction_code(code), target_binder(std::move(target)) {}
 };
 
-thread_local std::queue<ThreadTransactionInfo> g_thread_transaction_queue;
+// A thread-safe map to hold a queue of transactions for each thread.
+static std::mutex g_thread_transaction_map_mutex;
+static std::map<std::thread::id, std::queue<ThreadTransactionInfo>> g_thread_transaction_map;
 
 class BinderStub : public BBinder {
     status_t onTransact(uint32_t code, const android::Parcel &data, android::Parcel *reply, uint32_t flags) override {
         LOGD("BinderStub transaction: %u", code);
 
-        if (g_thread_transaction_queue.empty()) {
+        ThreadTransactionInfo transaction_info;
+        bool has_info = false;
+
+        { // Start a new scope for the lock guard
+            std::lock_guard<std::mutex> lock(g_thread_transaction_map_mutex);
+            auto thread_id = std::this_thread::get_id();
+            auto it = g_thread_transaction_map.find(thread_id);
+
+            if (it != g_thread_transaction_map.end() && !it->second.empty()) {
+                // Found a queue for this thread with items in it.
+                transaction_info = std::move(it->second.front());
+                it->second.pop();
+                has_info = true;
+
+                // Clean up: if the queue is now empty, remove its entry from the map
+                // to prevent the map from growing indefinitely over time.
+                if (it->second.empty()) {
+                    g_thread_transaction_map.erase(it);
+                }
+            }
+        } // The lock is released here
+
+        if (!has_info) {
             LOGW("No pending transaction info for stub");
             return UNKNOWN_TRANSACTION;
         }
-
-        auto transaction_info = g_thread_transaction_queue.front();
-        g_thread_transaction_queue.pop();
 
         if (transaction_info.target_binder == nullptr && transaction_info.transaction_code == intercept_constants::kBackdoorCode &&
             reply != nullptr) {
@@ -162,7 +185,9 @@ bool processBinderTransaction(binder_transaction_data *transaction_data) {
         transaction_data->target.ptr = reinterpret_cast<uintptr_t>(g_binder_stub->getWeakRefs());
         transaction_data->cookie = reinterpret_cast<uintptr_t>(g_binder_stub.get());
         transaction_data->code = intercept_constants::kBackdoorCode;
-        g_thread_transaction_queue.push(std::move(transaction_info));
+        // Get the queue for the current thread (or create it if it doesn't exist)
+        // and push the transaction info.
+        g_thread_transaction_map[std::this_thread::get_id()].push(std::move(transaction_info));
     }
 
     return should_intercept;
