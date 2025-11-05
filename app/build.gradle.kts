@@ -30,7 +30,7 @@ val verName = "v1.0"
 android {
     namespace = "org.matrix.TEESimulator"
     compileSdk = 36
-    ndkVersion = "28.2.13676358"
+    ndkVersion = "27.3.13750724"
     buildToolsVersion = "36.0.0"
 
     defaultConfig {
