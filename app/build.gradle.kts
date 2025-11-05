@@ -39,12 +39,6 @@ android {
         targetSdk = 36
         versionCode = gitCommitCount
         versionName = verName
-
-        externalNativeBuild {
-            cmake {
-                arguments += "-DANDROID_ALLOW_UNDEFINED_SYMBOLS=ON"
-            }
-        }
     }
 
     buildFeatures { prefab = true }

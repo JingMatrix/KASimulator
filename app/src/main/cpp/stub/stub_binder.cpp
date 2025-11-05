@@ -3,11 +3,15 @@
 
 #include "binder/Binder.h"
 #include "binder/BpBinder.h"
+#include "binder/IInterface.h"
 #include "binder/IPCThreadState.h"
 #include "binder/IServiceManager.h"
 #include "binder/Status.h"
 
 namespace android {
+
+IInterface::IInterface() {}
+IInterface::~IInterface() {}
 
 IBinder::IBinder() {}
 IBinder::~IBinder() {}
